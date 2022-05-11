@@ -1,0 +1,139 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: kafka-cluster
+  namespace: <Namespace>
+  labels:
+    app: kafka-cluster
+spec:
+  replicas: 3
+  serviceName: "kafka-headless"
+  selector:
+    matchLabels:
+      app: kafka-cluster
+  template:
+    metadata:
+      labels:
+        app: kafka-cluster
+        exporter: kafka
+    spec:
+      containers:
+      - name: kafka
+        image: confluentinc/cp-kafka:5.0.1
+        ports:
+        - containerPort: 19092
+        env:
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: KAFKA_LISTENERS
+          value: "SASL_SSL://0.0.0.0:19092"
+        - name: KAFKA_ADVERTISED_LISTENERS
+          value: "SASL_SSL://$(MY_POD_IP):19092"
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: "zookeeper-cluster-0.zookeeper-headless.log-service:22181,zookeeper-cluster-1.zookeeper-headless.log-service:22181,zookeeper-cluster-2.zookeeper-headless.log-service:22181"
+        - name: KAFKA_SASL_ENABLED_MECHANISMS
+          value: "SCRAM-SHA-256"
+        - name: KAFKA_SECURITY_INTER_BROKER_PROTOCOL
+          value: "SASL_SSL"
+        - name: KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL
+          value: "SCRAM-SHA-256"
+        - name: CONFLUENT_METRICS_REPORTER_SECURITY_PROTOCOL
+          value: "SASL_SSL"
+        - name: CONFLUENT_METRICS_REPORTER_SASL_MECHANISM
+          value: "SCRAM-SHA-256"
+        - name: CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS
+          value: "kafka-cluster-0.kafka-headless.log-service:19092,kafka-cluster-1.kafka-headless.log-service:19092,kafka-cluster-2.kafka-headless.log-service:19092"
+        - name: KAFKA_ZOOKEEPER_SASL_ENABLED
+          value: "true"
+        - name: KAFKA_ZOOKEEPER_SET_ACL
+          value: "true"
+        - name: KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND
+          value: "false"
+        - name: KAFKA_MIN_INSYNC_REPLICAS
+          value: "1"
+        - name: KAFKA_OFFSETS_RETENTION_MINUTES
+          value: "172800"
+        - name: KAFKA_LOG4J_LOGGERS
+          value: "kafka.authorizer.logger=INFO,kafka.controller=INFO"
+        - name: KAFKA_LOG4J_ROOT_LOGLEVEL
+          value: "INFO"
+        - name: KAFKA_SUPER_USERS
+          value: "User:metricsreporter;User:kafkabroker;User:kafkaclient"
+        - name: KAFKA_AUTHORIZER_CLASS_NAME
+          value: "kafka.security.auth.SimpleAclAuthorizer"
+        - name: KAFKA_SSL_TRUSTSTORE_FILENAME
+          value: "OLLI.trust"
+        - name: KAFKA_SSL_TRUSTSTORE_LOCATION
+          value: "/etc/kafka/secrets/OLLI.trust"
+        - name: KAFKA_SSL_TRUSTSTORE_CREDENTIALS
+          value: "OLLI_creds"
+        - name: KAFKA_SSL_KEYSTORE_FILENAME
+          value: "admin.key"          
+        - name: KAFKA_SSL_KEYSTORE_LOCATION
+          value: "/etc/kafka/secrets/admin.key"
+        - name: KAFKA_SSL_KEYSTORE_CREDENTIALS
+          value: "admin_creds"
+        - name: KAFKA_SSL_KEY_CREDENTIALS
+          value: "admin_creds"
+        - name: KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM
+          value: ""
+        - name: KAFKA_SSL_CLIENT_AUTH
+          value: "required"
+        - name: KAFKA_OPTS
+          value: "-Dzookeeper.sasl.client=true -Dzookeeper.sasl.clientconfig=Client -Djava.security.auth.login.config=/etc/kafka/secrets/kafka_server_jaas.conf"
+        command:
+        - sh
+        - -exc
+        - |
+          export KAFKA_BROKER_ID=${HOSTNAME##*-} && \
+          exec /etc/confluent/docker/run
+        volumeMounts:
+        - name: kafka-jaas
+          mountPath: /etc/kafka/secrets/kafka_server_jaas.conf
+          subPath: kafka_server_jaas.conf
+        - name: trust-file
+          mountPath: /etc/kafka/secrets/<Company>.trust
+          subPath: <Company>.trust
+        - name: key-file
+          mountPath: /etc/kafka/secrets/admin.key
+          subPath: admin.key
+        - name: admin-creds
+          mountPath: /etc/kafka/secrets/admin_creds
+          subPath: admin_creds
+        - name: <Company>-creds
+          mountPath: /etc/kafka/secrets/<Company>_creds
+          subPath: <Company>_creds
+      volumes:
+        - name: kafka-jaas
+          configMap:
+            name: kafka-jaas
+        - name: trust-file
+          configMap:
+            name: trust-file
+        - name: key-file
+          configMap:
+            name: key-file
+        - name: admin-creds
+          configMap:
+            name: admin-creds
+        - name: <Company>-creds
+          configMap:
+            name: <Company>-creds
+        
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: <Namespace>
+spec:
+  clusterIP: None     
+  selector:
+    app: kafka-cluster
+  ports:
+    - protocol: TCP
+      port: 19092         
+      targetPort: 19092

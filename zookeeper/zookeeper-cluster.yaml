@@ -1,0 +1,97 @@
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: zookeeper-cluster
+  namespace: <Namespace>
+  labels:
+    app: zookeeper-cluster
+spec:
+  serviceName: "zookeeper-headless"
+  replicas: 3
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: zookeeper-cluster
+  template:
+    metadata:
+      labels:
+        app: zookeeper-cluster
+    spec:
+      containers:
+      - name: zookeeper
+        image: confluentinc/cp-zookeeper:5.0.1
+        ports:
+        - containerPort: 22181
+          name: client
+        - containerPort: 2888
+          name: server
+        - containerPort: 3888
+          name: leader-election
+        env:
+        - name: ZOOKEEPER_SERVER_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name              
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "22181"
+        - name: ZOOKEEPER_TICK_TIME
+          value: "2000"
+        - name: ZOOKEEPER_INIT_LIMIT
+          value: "5"
+        - name: ZOOKEEPER_SYNC_LIMIT
+          value: "2"
+        - name: ZOOKEEPER_LOG4J_ROOT_LOGLEVEL
+          value: "DEBUG"
+        - name: ZOOKEEPER_SERVERS
+          value: "zookeeper-cluster-0.zookeeper-headless.log-service:2888:3888;zookeeper-cluster-1.zookeeper-headless.log-service:2888:3888;zookeeper-cluster-2.zookeeper-headless.log-service:2888:3888"
+        - name: KAFKA_OPTS
+          value: "-Djava.security.auth.login.config=/etc/kafka/secrets/zookeeper_server_jaas.conf -Dquorum.auth.enableSasl=true -Dquorum.auth.learnerRequireSasl=true -Dquorum.auth.serverRequireSasl=true -Dquorum.cnxn.threads.size=20 -Dzookeeper.authProvider.1=org.apache.zookeeper.server.auth.SASLAuthenticationProvider -Dzookeeper.authProvider.2=org.apache.zookeeper.server.auth.DigestAuthenticationProvider -DjaasLoginRenew=3600000 -DrequireClientAuthScheme=sasl -Dquorum.auth.learner.loginContext=QuorumLearner -Dquorum.auth.server.loginContext=QuorumServer"
+        command:
+        - "bash"
+        - "-c"
+        - |
+          ZK_FIX_HOST_REGEX="s/${HOSTNAME}\.[^:]*:/0.0.0.0:/g"
+          ZOOKEEPER_SERVER_ID=$((${HOSTNAME##*-}+1)) \
+          ZOOKEEPER_SERVERS=`echo $ZOOKEEPER_SERVERS | sed -e "$ZK_FIX_HOST_REGEX"` \
+          /etc/confluent/docker/run
+        volumeMounts:
+        - name: zk-jaas
+          mountPath: /etc/kafka/secrets/zookeeper_server_jaas.conf
+          subPath: zookeeper_server_jaas.conf
+      volumes:
+        - name: zk-jaas
+          configMap:
+            name: zk-jaas
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper-headless
+  namespace: <Namespace>
+  labels:
+    app: zookeeper-cluster
+spec:
+  ports:
+  - port: 2888
+    name: server
+  - port: 3888
+    name: leader-election
+  clusterIP: None
+  selector:
+    app: zookeeper-cluster
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: <Namespace>
+  labels:
+    app: zookeeper-cluster
+spec:
+  ports:
+  - port: 22181
+    name: client
+  selector:
+    app: zookeeper-cluster
