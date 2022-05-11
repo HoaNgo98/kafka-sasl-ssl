@@ -64,11 +64,11 @@ spec:
         - name: KAFKA_AUTHORIZER_CLASS_NAME
           value: "kafka.security.auth.SimpleAclAuthorizer"
         - name: KAFKA_SSL_TRUSTSTORE_FILENAME
-          value: "OLLI.trust"
+          value: "<Company>.trust"
         - name: KAFKA_SSL_TRUSTSTORE_LOCATION
-          value: "/etc/kafka/secrets/OLLI.trust"
+          value: "/etc/kafka/secrets/<Company>.trust"
         - name: KAFKA_SSL_TRUSTSTORE_CREDENTIALS
-          value: "OLLI_creds"
+          value: "<Company>_creds"
         - name: KAFKA_SSL_KEYSTORE_FILENAME
           value: "admin.key"          
         - name: KAFKA_SSL_KEYSTORE_LOCATION
