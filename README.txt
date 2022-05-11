@@ -2,6 +2,16 @@
 1. Deploy Zookeeper: create configmap as needed
 2. Create cert: run script to create CA, <Company>.trust, admin.key
 3. Deploy Kafka: create configmap as needed
+4. Run command in "COMMAND FORCE" then restart Kafka ( delete pod :"> )
+
+
+============= COMMAND FORCE =============
+kafka-configs --zookeeper zookeeper-cluster-0.zookeeper-headless.<namespace>:22181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password=password]' --entity-type users --entity-name metricsreporter
+
+kafka-configs --zookeeper zookeeper-cluster-0.zookeeper-headless.<namespace>:22181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password=password]' --entity-type users --entity-name kafkaclient
+
+
+kafka-configs --zookeeper zookeeper-cluster-0.zookeeper-headless.<namespace>:22181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password=password]' --entity-type users --entity-name kafkabroker
 
 ============= COMMAND KAFKA =============
 # Create new user
