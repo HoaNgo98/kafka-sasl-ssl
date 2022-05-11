@@ -10,7 +10,6 @@ kafka-configs --zookeeper zookeeper-cluster-0.zookeeper-headless.<namespace>:221
 
 kafka-configs --zookeeper zookeeper-cluster-0.zookeeper-headless.<namespace>:22181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password=password]' --entity-type users --entity-name kafkaclient
 
-
 kafka-configs --zookeeper zookeeper-cluster-0.zookeeper-headless.<namespace>:22181 --alter --add-config 'SCRAM-SHA-256=[iterations=4096,password=password]' --entity-type users --entity-name kafkabroker
 
 ============= COMMAND KAFKA =============
